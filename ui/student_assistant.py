@@ -7,7 +7,6 @@ from core.backend.rag_backend import query_rag
 from voice.indicconformer.asr_bridge import transcribe
 
 
-
 # Conservative corrections for verified IndicConformer Kannada ASR errors.
 # These are applied only to the query sent to RAG, not to the displayed
 # transcription.
@@ -20,8 +19,10 @@ ASR_CORRECTIONS = {
 def normalize_asr_query(text: str) -> str:
     """Apply only verified, conservative Kannada ASR corrections."""
     normalized = text
+
     for wrong, correct in ASR_CORRECTIONS.items():
         normalized = normalized.replace(wrong, correct)
+
     return normalized
 
 
@@ -97,16 +98,24 @@ def _process_rag_query(user_query: str):
 
                 if isinstance(source, dict):
 
-                    page = source.get("page", "?")
-                    chunk_id = source.get("chunk_id", "?")
                     source_name = source.get(
                         "source",
                         "Local Knowledge Base"
                     )
 
+                    page = source.get("page")
+                    chunk_id = source.get("chunk_id")
+
+                    source_parts = [str(source_name)]
+
+                    if page is not None:
+                        source_parts.append(f"Page {page}")
+
+                    if chunk_id is not None:
+                        source_parts.append(str(chunk_id))
+
                     st.caption(
-                        f"• {source_name} — "
-                        f"Page {page} — {chunk_id}"
+                        "• " + " — ".join(source_parts)
                     )
 
                 else:
@@ -141,7 +150,8 @@ def render_student_assistant():
 
     Voice:
         Kannada audio -> AI4Bharat IndicConformer ASR
-        -> Kannada transcription -> existing RAG backend
+        -> Kannada transcription -> conservative ASR normalization
+        -> existing RAG backend
     """
 
     st.subheader("🎓 Vernacular Student Assistant")
@@ -240,7 +250,7 @@ def render_student_assistant():
                     return
 
                 # -----------------------------------------
-                # Display transcription
+                # Display raw transcription
                 # -----------------------------------------
 
                 st.markdown("### 📝 Transcription")
@@ -257,7 +267,7 @@ def render_student_assistant():
                     )
 
                 # -----------------------------------------
-                # Send transcription to RAG
+                # Send normalized transcription to RAG
                 # -----------------------------------------
 
                 rag_query = normalize_asr_query(
