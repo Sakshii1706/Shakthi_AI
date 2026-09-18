@@ -1,34 +1,48 @@
-import json
+﻿from datetime import datetime, timezone
 from pathlib import Path
 
 import streamlit as st
 
+from core.telemetry import get_summary
+
 
 # ---------------------------------------------------------
-# DEMO TELEMETRY DATA
+# TELEMETRY HELPERS
 # ---------------------------------------------------------
 
-DATA_FILE = (
-    Path(__file__).resolve().parent.parent
-    / "data"
-    / "demo_telemetry.json"
-)
+def _format_response_time(milliseconds):
+    if milliseconds is None:
+        return "—"
+
+    milliseconds = float(milliseconds)
+
+    if milliseconds < 1000:
+        return f"{milliseconds:.0f} ms"
+
+    return f"{milliseconds / 1000:.1f} s"
 
 
-def load_telemetry():
-    """
-    Load local demo telemetry.
+def _format_confidence(confidence):
+    if confidence is None:
+        return "—"
 
-    This is placeholder/demo data only.
-    Real telemetry will be connected during backend integration.
-    """
+    return f"{float(confidence) * 100:.1f}%"
+
+
+def _format_last_activity(timestamp):
+    if not timestamp:
+        return "No activity yet"
 
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as file:
-            return json.load(file)
+        parsed = datetime.fromisoformat(timestamp)
 
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+
+        return parsed.astimezone().strftime("%d %b %Y, %I:%M %p")
+
+    except ValueError:
+        return str(timestamp)
 
 
 # ---------------------------------------------------------
@@ -40,49 +54,47 @@ def render_telemetry():
     st.subheader("📊 ICDS Frontline Telemetry")
 
     st.caption(
-        "Anonymized local telemetry and compliance pulse."
+        "Anonymized local operational telemetry from the Shakthi AI edge appliance."
     )
 
-    # Load local telemetry JSON
-    data = load_telemetry()
+    # -----------------------------------------------------
+    # LOAD REAL LOCAL TELEMETRY
+    # -----------------------------------------------------
+
+    try:
+        data = get_summary()
+
+    except Exception as exc:
+        st.error(
+            "Local telemetry is currently unavailable."
+        )
+        st.caption(f"Telemetry error: {exc}")
+        return
+
+    total = data.get("total", 0)
+    answered = data.get("answered", 0)
+    refused = data.get("refused", 0)
+    voice = data.get("voice", 0)
+    text = data.get("text", 0)
+
+    avg_response_time = data.get("avg_response_time_ms")
+    avg_confidence = data.get("avg_confidence")
+    last_event = data.get("last_event_utc")
 
     # -----------------------------------------------------
     # DATA STATUS
     # -----------------------------------------------------
 
-    if data is None:
-
-        st.warning(
-            "⚠️ Local telemetry data is currently unavailable."
+    if total == 0:
+        st.info(
+            "No telemetry events have been recorded yet. "
+            "Use the Vernacular Student Assistant to generate local activity."
         )
-
-        adherence = "Awaiting Data"
-        top_query = "Awaiting Data"
-        dropout_risk = "Awaiting Data"
-        sync_status = "Unknown"
-
     else:
-
-        adherence = f"{data.get('pilot_school_adherence', 0)}%"
-        top_query = data.get(
-            "top_student_query",
-            "Awaiting Data"
+        st.success(
+            f"Local telemetry active — {total} interaction"
+            f"{'' if total == 1 else 's'} recorded."
         )
-        dropout_risk = data.get(
-            "dropout_risk_index",
-            "Awaiting Data"
-        )
-        sync_status = data.get(
-            "sync_status",
-            "Local Only"
-        )
-
-        # Clearly identify placeholder telemetry
-        if data.get("demo_data", False):
-            st.info(
-                "🧪 DEMO DATA — These telemetry values are "
-                "placeholders for interface testing."
-            )
 
     # -----------------------------------------------------
     # PRIMARY METRICS
@@ -92,52 +104,110 @@ def render_telemetry():
 
     with col1:
         st.metric(
-            "Pilot School Adherence",
-            adherence,
+            "Total Interactions",
+            total,
         )
 
     with col2:
         st.metric(
-            "Top Student Query",
-            top_query,
+            "Answered",
+            answered,
         )
 
     with col3:
         st.metric(
-            "Dropout Risk Index",
-            dropout_risk,
+            "Refused",
+            refused,
         )
 
-    st.markdown("---")
-
     # -----------------------------------------------------
-    # OFFLINE TELEMETRY STATUS
+    # INPUT / PERFORMANCE METRICS
     # -----------------------------------------------------
 
-    st.success(
-        "🟢 Store-and-forward telemetry is available for "
-        "local offline operation."
-    )
+    st.markdown("### Interaction Profile")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Voice",
+            voice,
+        )
+
+    with col2:
+        st.metric(
+            "Text",
+            text,
+        )
+
+    with col3:
+        st.metric(
+            "Avg. Response Time",
+            _format_response_time(avg_response_time),
+        )
+
+    # -----------------------------------------------------
+    # RAG METRICS
+    # -----------------------------------------------------
+
+    st.markdown("### RAG Performance")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Avg. Confidence",
+            _format_confidence(avg_confidence),
+        )
+
+    with col2:
+        st.metric(
+            "Answered Rate",
+            (
+                f"{(answered / total) * 100:.1f}%"
+                if total
+                else "—"
+            ),
+        )
+
+    with col3:
+        st.metric(
+            "Refusal Rate",
+            (
+                f"{(refused / total) * 100:.1f}%"
+                if total
+                else "—"
+            ),
+        )
+
+    # -----------------------------------------------------
+    # LAST ACTIVITY
+    # -----------------------------------------------------
+
+    st.markdown("### Activity")
 
     st.info(
-        "Telemetry will use anonymized local data. "
-        "No live cloud synchronization is required "
-        "for normal operation."
+        f"Last local interaction: **{_format_last_activity(last_event)}**"
     )
 
     # -----------------------------------------------------
-    # SYSTEM STATUS
+    # OFFLINE / STORE-AND-FORWARD STATUS
     # -----------------------------------------------------
 
-    st.markdown("### System Status")
+    st.markdown("### Edge Telemetry Status")
 
     status_col1, status_col2, status_col3 = st.columns(3)
 
     with status_col1:
-        st.write("🔒 **Air-gapped:** Ready")
+        st.success("🔒 Air-gapped: Ready")
 
     with status_col2:
-        st.write("💾 **Local Storage:** Ready")
+        st.success("💾 Local Storage: Ready")
 
     with status_col3:
-        st.write(f"📡 **Sync:** {sync_status}")
+        st.success("📡 Sync: Local Only")
+
+    st.caption(
+        "Telemetry is persisted locally in SQLite. "
+        "The operational telemetry store does not save the user's query text."
+    )
