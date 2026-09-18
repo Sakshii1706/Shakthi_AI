@@ -1,9 +1,11 @@
 ﻿import os
 import tempfile
+import time
 
 import streamlit as st
 
 from core.backend.rag_backend import query_rag
+from core.telemetry import record_event
 from voice.indicconformer.asr_bridge import transcribe
 
 
@@ -26,10 +28,50 @@ def normalize_asr_query(text: str) -> str:
     return normalized
 
 
-def _process_rag_query(user_query: str):
+def _record_query_telemetry(
+    *,
+    user_query: str,
+    input_mode: str,
+    result: dict,
+    response_time_ms: float,
+) -> None:
+    """
+    Record anonymized operational telemetry.
+
+    Telemetry failures must never break the RAG response.
+    The actual query text is intentionally not stored.
+    """
+
+    try:
+        confidence = result.get("confidence")
+        sources = result.get("sources", [])
+
+        record_event(
+            input_mode=input_mode,
+            language="kn",
+            query_length=len(user_query),
+            refused=bool(result.get("refused", False)),
+            confidence=confidence,
+            response_time_ms=response_time_ms,
+            source_count=len(sources) if sources else 0,
+        )
+
+    except Exception:
+        # Telemetry is non-critical. Never interrupt the assistant.
+        pass
+
+
+def _process_rag_query(
+    user_query: str,
+    input_mode: str = "text",
+):
     """
     Send a Kannada text query to the existing Shakthi AI RAG backend
     and render the response.
+
+    input_mode:
+        "text" for typed queries
+        "voice" for ASR-generated queries
     """
 
     if not user_query or not user_query.strip():
@@ -42,16 +84,48 @@ def _process_rag_query(user_query: str):
 
         with st.spinner("ಉತ್ತರವನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ..."):
 
+            start_time = time.perf_counter()
+
             try:
                 result = query_rag(user_query)
 
             except Exception as e:
+                response_time_ms = (
+                    time.perf_counter() - start_time
+                ) * 1000
+
+                # Do not let a backend failure disappear from
+                # operational telemetry.
+                try:
+                    record_event(
+                        input_mode=input_mode,
+                        language="kn",
+                        query_length=len(user_query),
+                        refused=True,
+                        confidence=None,
+                        response_time_ms=response_time_ms,
+                        source_count=0,
+                    )
+                except Exception:
+                    pass
+
                 st.error(
                     "RAG backend error. Please check the local "
                     "backend configuration."
                 )
                 st.exception(e)
                 return
+
+            response_time_ms = (
+                time.perf_counter() - start_time
+            ) * 1000
+
+        _record_query_telemetry(
+            user_query=user_query,
+            input_mode=input_mode,
+            result=result,
+            response_time_ms=response_time_ms,
+        )
 
         # -------------------------------------------------
         # Refusal / Guardrail
@@ -62,7 +136,7 @@ def _process_rag_query(user_query: str):
             st.warning(
                 result.get(
                     "answer",
-                    "ಈ ಪ್ರಶ್ನೆಗೆ ಮಾಹಿತಿಯಲ್ಲಿ ಉತ್ತರ ಸಿಗಲಿಲ್ಲ."
+                    "ಈ ಪ್ರಶ್ನೆಗೆ ಮಾಹಿತಿಯಲ್ಲಿ ಉತ್ತರ ಸಿಗಲಿಲ್ಲ.",
                 )
             )
 
@@ -80,7 +154,7 @@ def _process_rag_query(user_query: str):
         st.write(
             result.get(
                 "answer",
-                "ಉತ್ತರ ಲಭ್ಯವಿಲ್ಲ."
+                "ಉತ್ತರ ಲಭ್ಯವಿಲ್ಲ.",
             )
         )
 
@@ -100,7 +174,7 @@ def _process_rag_query(user_query: str):
 
                     source_name = source.get(
                         "source",
-                        "Local Knowledge Base"
+                        "Local Knowledge Base",
                     )
 
                     page = source.get("page")
@@ -119,7 +193,6 @@ def _process_rag_query(user_query: str):
                     )
 
                 else:
-
                     st.caption(f"• {source}")
 
         # -------------------------------------------------
@@ -132,12 +205,12 @@ def _process_rag_query(user_query: str):
 
             confidence = min(
                 max(float(confidence), 0.0),
-                1.0
+                1.0,
             )
 
             st.progress(
                 confidence,
-                text=f"Retrieval confidence: {confidence:.0%}"
+                text=f"Retrieval confidence: {confidence:.0%}",
             )
 
 
@@ -170,7 +243,10 @@ def render_student_assistant():
     )
 
     if user_query:
-        _process_rag_query(user_query)
+        _process_rag_query(
+            user_query,
+            input_mode="text",
+        )
 
     # =====================================================
     # VOICE INPUT
@@ -193,12 +269,12 @@ def render_student_assistant():
 
         st.audio(
             audio_value,
-            format="audio/wav"
+            format="audio/wav",
         )
 
         if st.button(
             "▶️ Transcribe & Ask",
-            key="transcribe_and_ask"
+            key="transcribe_and_ask",
         ):
 
             temp_audio_path = None
@@ -211,7 +287,7 @@ def render_student_assistant():
 
                 with tempfile.NamedTemporaryFile(
                     suffix=".wav",
-                    delete=False
+                    delete=False,
                 ) as temp_audio:
 
                     temp_audio.write(
@@ -234,7 +310,7 @@ def render_student_assistant():
 
                 transcribed_text = voice_result.get(
                     "text",
-                    ""
+                    "",
                 ).strip()
 
                 asr_confidence = voice_result.get(
@@ -275,7 +351,8 @@ def render_student_assistant():
                 )
 
                 _process_rag_query(
-                    rag_query
+                    rag_query,
+                    input_mode="voice",
                 )
 
             except Exception as e:
