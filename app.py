@@ -2,49 +2,104 @@ import streamlit as st
 
 from ui.student_assistant import render_student_assistant
 from ui.telemetry import render_telemetry
-from ui.knowledge_manager import render_knowledge_manager
 
-
-# ---------------------------------------------------------
-# PAGE CONFIGURATION
-# ---------------------------------------------------------
 
 st.set_page_config(
-    page_title="Shakthi AI • Sovereign Edge",
+    page_title="Shakthi AI | Sovereign Edge",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-
 # ---------------------------------------------------------
-# CUSTOM STYLING
+# GLOBAL UI STYLING
 # ---------------------------------------------------------
 
 st.markdown(
     """
     <style>
-
-    .main-title {
-        font-size: 2.4rem;
-        font-weight: 700;
-        margin-bottom: 0;
+    .block-container {
+        max-width: 1180px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
     }
 
-    .subtitle {
+    .shakthi-brand {
+        font-size: 2.7rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        margin-bottom: 0.15rem;
+    }
+
+    .shakthi-subtitle {
         font-size: 1.05rem;
         color: #64748b;
-        margin-top: 0.2rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.2rem;
     }
 
-    .status-box {
-        padding: 0.8rem 1rem;
-        border-radius: 0.6rem;
-        background: rgba(14, 165, 233, 0.08);
-        border: 1px solid rgba(14, 165, 233, 0.25);
+    .shakthi-hero {
+        padding: 1.35rem 1.5rem;
+        border: 1px solid rgba(100, 116, 139, 0.18);
+        border-radius: 18px;
+        background: linear-gradient(
+            135deg,
+            rgba(14, 165, 233, 0.08),
+            rgba(99, 102, 241, 0.05)
+        );
+        margin-bottom: 1.4rem;
     }
 
+    .hero-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .hero-text {
+        color: #64748b;
+        line-height: 1.55;
+        margin-bottom: 0.8rem;
+    }
+
+    .hero-pill {
+        display: inline-block;
+        padding: 0.3rem 0.65rem;
+        margin-right: 0.35rem;
+        margin-bottom: 0.25rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.06);
+        font-size: 0.82rem;
+    }
+
+    [data-testid="stSidebar"] {
+        border-right: 1px solid rgba(100, 116, 139, 0.12);
+    }
+
+    .sidebar-title {
+        font-size: 1.2rem;
+        font-weight: 750;
+        margin-bottom: 0.4rem;
+    }
+
+    .status-card {
+        padding: 0.9rem;
+        border-radius: 12px;
+        border: 1px solid rgba(34, 197, 94, 0.22);
+        background: rgba(34, 197, 94, 0.06);
+        margin-bottom: 1rem;
+    }
+
+    .status-card strong {
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+
+    .footer-note {
+        color: #64748b;
+        font-size: 0.82rem;
+        text-align: center;
+        padding-top: 0.4rem;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -56,14 +111,34 @@ st.markdown(
 # ---------------------------------------------------------
 
 st.markdown(
-    '<div class="main-title">⚡ SHAKTHI AI</div>',
+    '<div class="shakthi-brand">⚡ SHAKTHI AI</div>',
     unsafe_allow_html=True,
 )
 
 st.markdown(
-    '<div class="subtitle">'
+    '<div class="shakthi-subtitle">'
     "Sovereign Edge Intelligence Platform • Powered by Namma Web"
     "</div>",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="shakthi-hero">
+        <div class="hero-title">
+            Kannada-first intelligence that stays on the edge.
+        </div>
+        <div class="hero-text">
+            Ask questions using Kannada text or voice. Shakthi AI uses
+            verified local knowledge and local AI models without requiring
+            a cloud service during normal operation.
+        </div>
+        <span class="hero-pill">🔒 Local / Air-gapped</span>
+        <span class="hero-pill">🧠 Gemma 3 4B</span>
+        <span class="hero-pill">📚 Verified knowledge</span>
+        <span class="hero-pill">🎙️ Kannada voice</span>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -74,24 +149,40 @@ st.markdown(
 
 with st.sidebar:
 
-    st.markdown("## 💻 Edge Appliance Status")
+    st.markdown(
+        '<div class="sidebar-title">🖥️ Edge Appliance</div>',
+        unsafe_allow_html=True,
+    )
 
-    st.success("🟢 100% AIR-GAPPED OFFLINE")
+    st.markdown(
+        """
+        <div class="status-card">
+            <strong>🟢 Local system ready</strong>
+            Designed for air-gapped operation.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown("**Compute Engine:** Quad-Core CPU")
+    st.markdown("**Compute**")
+    st.caption("Quad-Core CPU • Target 8GB RAM")
 
-    st.markdown("**Target RAM:** 8GB")
+    st.markdown("**Inference**")
+    st.caption("Gemma 3 4B via local Ollama")
 
-    st.markdown("**Vector Store:** Local Persistent")
+    st.markdown("**Embeddings**")
+    st.caption("Multilingual MiniLM • 384D")
 
-    st.markdown("**Inference:** Gemma 3 4B")
+    st.markdown("**Retrieval**")
+    st.caption("SQLite • Top-k = 2")
 
+    st.markdown("**Knowledge**")
+    st.caption("Verified local manuals")
 
-    st.markdown("**Embeddings:** Multilingual MiniLM 384D")
+    st.divider()
 
-    st.markdown("**Retrieval:** Top-k = 2")
-
-    st.markdown("**Knowledge:** Verified Local Manuals")
+    st.markdown("**Privacy**")
+    st.caption("Queries and operational telemetry remain local.")
 
     st.divider()
 
@@ -102,11 +193,10 @@ with st.sidebar:
 # TABS
 # ---------------------------------------------------------
 
-tab1, tab2, tab3 = st.tabs(
+tab1, tab2 = st.tabs(
     [
-        "🗣 Vernacular Student Assistant",
+        "🗣️ Vernacular Student Assistant",
         "📊 ICDS Frontline Telemetry",
-        "📚 Document Knowledge Manager",
     ]
 )
 
@@ -128,12 +218,6 @@ with tab2:
 
 
 # ---------------------------------------------------------
-# TAB 3
-# ---------------------------------------------------------
-
-with tab3:
-    render_knowledge_manager()
-
 
 # ---------------------------------------------------------
 # FOOTER
@@ -141,7 +225,10 @@ with tab3:
 
 st.divider()
 
-st.caption(
+st.markdown(
+    '<div class="footer-note">'
     "🔒 Shakthi AI is designed for local, air-gapped operation "
     "with verified knowledge and bounded responses."
+    "</div>",
+    unsafe_allow_html=True,
 )

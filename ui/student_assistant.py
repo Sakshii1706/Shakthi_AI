@@ -1,4 +1,4 @@
-﻿import os
+import os
 import tempfile
 import time
 
@@ -133,6 +133,8 @@ def _process_rag_query(
 
         if result.get("refused", False):
 
+            st.markdown("### 🛡️ Outside verified knowledge")
+
             st.warning(
                 result.get(
                     "answer",
@@ -151,6 +153,8 @@ def _process_rag_query(
         # Normal Answer
         # -------------------------------------------------
 
+        st.markdown("### 🤖 Shakthi's answer")
+
         st.write(
             result.get(
                 "answer",
@@ -166,7 +170,7 @@ def _process_rag_query(
 
         if sources:
 
-            st.markdown("**📚 Sources**")
+            st.markdown("### 📚 Verified local sources")
 
             for source in sources:
 
@@ -227,11 +231,27 @@ def render_student_assistant():
         -> existing RAG backend
     """
 
-    st.subheader("🎓 Vernacular Student Assistant")
+    st.markdown("## 🎓 Vernacular Student Assistant")
 
-    st.caption(
-        "Ask questions in Kannada about verified health, education, "
-        "or safety information."
+    st.markdown(
+        """
+        <div style="
+            padding: 0.9rem 1rem;
+            border: 1px solid rgba(99,132,255,0.28);
+            border-radius: 14px;
+            background: rgba(27,42,74,0.45);
+            margin-bottom: 1rem;
+        ">
+            <div style="font-weight:700; margin-bottom:0.25rem; color:#E7ECFF;">
+                Ask Shakthi in Kannada
+            </div>
+            <div style="color:rgba(231,236,255,0.75); font-size:0.92rem; line-height:1.5;">
+                Type your question or use your voice. Answers are grounded
+                in verified local knowledge and processed on the edge.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     # =====================================================
@@ -329,7 +349,7 @@ def render_student_assistant():
                 # Display raw transcription
                 # -----------------------------------------
 
-                st.markdown("### 📝 Transcription")
+                st.markdown("### 🎙️ You said")
 
                 st.success(
                     transcribed_text
